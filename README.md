@@ -30,7 +30,7 @@ Welcome to the **Trivia Quiz Game**! This is an interactive web-based quiz appli
 1. **Clone this repository**:
 
 ```bash
-git clone https://github.com/mikemarvel-stack/michael-muturi-trivia-project
+git clone git@github.com:Moringa-SDF-PT10/michael-muturi-trivia-project.git
 cd michael-muturi-trivia-project
 ```
 
@@ -42,7 +42,7 @@ cd michael-muturi-trivia-project
 3. **Deployment**:
 
 This project is deployed on GitHub Pages:  
-➡️ https://mikemarvel-stack.github.io/michael-muturi-trivia-project/
+➡️ https://moringa-sdf-pt10.github.io/michael-muturi-trivia-project/
 
 ## 📁 Project Structure
 
