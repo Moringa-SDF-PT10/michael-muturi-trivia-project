@@ -1,148 +1,149 @@
-const startButton = document.getElementById('start-btn');
-const quizDiv = document.getElementById('quiz-container');
-const startDiv = document.getElementById('start-screen');
-const resultDiv = document.getElementById('result-screen');
-const questionBox = document.getElementById('question');
-const answersUl = document.getElementById('answer-buttons');
-const nextBtn = document.getElementById('next-btn');
-const scoreText = document.getElementById('score');
-const missedList = document.getElementById('correct-answers');
-const restartButton = document.getElementById('restart-btn');
-const feedbackBox = document.getElementById('feedback');
-const timerDisplay = document.getElementById('timer');
-const categorySelect = document.getElementById('category-select');
+const startBtn = document.getElementById('start-btn');
+const quizBox = document.getElementById('quiz-container');
+const homeScreen = document.getElementById('start-screen');
+const resultsPanel = document.getElementById('result-screen');
+const questionLabel = document.getElementById('question');
+const answerList = document.getElementById('answer-buttons');
+const nextQuestionBtn = document.getElementById('next-btn');
+const scoreDisplay = document.getElementById('score');
+const reviewList = document.getElementById('correct-answers');
+const retryBtn = document.getElementById('restart-btn');
+const responseBox = document.getElementById('feedback');
+const clock = document.getElementById('timer');
+const categoryMenu = document.getElementById('category-select');
 
-let questions = [];
-let currentIndex = 0;
-let totalScore = 0;
-let missedQs = [];
-let questionTimer;
-let timeLeft = 15;
-let totalTimeStart;
+let questionSet = [];
+let qIndex = 0;
+let score = 0;
+let mistakes = [];
+let timerRef;
+let secondsLeft = 15;
+let quizStartTime;
 
-startButton.addEventListener('click', startQuiz);
-nextBtn.addEventListener('click', () => {
-  currentIndex++;
-  showQuestion();
-});
-restartButton.addEventListener('click', () => {
-  resultDiv.classList.add('hidden');
-  startDiv.classList.remove('hidden');
-});
+startBtn.onclick = initQuiz;
+nextQuestionBtn.onclick = () => {
+  qIndex++;
+  renderQuestion();
+};
+retryBtn.onclick = () => {
+  resultsPanel.classList.add('hidden');
+  homeScreen.classList.remove('hidden');
+};
 
-function startQuiz() {
-  const amount = 5;
-  const category = categorySelect.value;
-  const difficulty = "medium";
-  const type = "multiple";
+function initQuiz() {
+  const questionCount = 5;
+  const cat = categoryMenu.value;
+  const difficulty = 'medium';
+  const type = 'multiple';
 
-  let apiURL = `https://opentdb.com/api.php?amount=${amount}${category ? `&category=${category}` : ''}${difficulty ? `&difficulty=${difficulty}` : ''}${type ? `&type=${type}` : ''}`;
+  let api = `https://opentdb.com/api.php?amount=${questionCount}` +
+            (cat ? `&category=${cat}` : '') +
+            `&difficulty=${difficulty}&type=${type}`;
 
-  fetch(apiURL)
+  fetch(api)
     .then(res => res.json())
     .then(data => {
-      questions = data.results;
-      currentIndex = 0;
-      totalScore = 0;
-      missedQs = [];
-      totalTimeStart = Date.now();
+      questionSet = data.results;
+      qIndex = 0;
+      score = 0;
+      mistakes = [];
+      quizStartTime = Date.now();
 
-      startDiv.classList.add('hidden');
-      quizDiv.classList.remove('hidden');
+      homeScreen.classList.add('hidden');
+      quizBox.classList.remove('hidden');
 
-      showQuestion();
+      renderQuestion();
     })
-    .catch(error => {
-      console.error("Error fetching questions from API:", error);
-      alert(`Couldn't load quiz. Error: ${error.message || "Unknown error"}. Please check your internet connection or try again later.`);
+    .catch(err => {
+      console.error('Quiz fetch failed:', err);
+      alert("Couldn't start quiz. Try again later.");
     });
 }
 
-function showQuestion() {
-  if (questionTimer) {
-    clearInterval(questionTimer);
-  }
+function renderQuestion() {
+  if (timerRef) clearInterval(timerRef);
 
-  feedbackBox.innerText = '';
-  nextBtn.classList.add('hidden');
+  responseBox.textContent = '';
+  nextQuestionBtn.classList.add('hidden');
 
-  if (questions.length === 0) {
-    alert("No questions available. Please try again later.");
-    quizDiv.classList.add('hidden');
-    startDiv.classList.remove('hidden');
+  if (!questionSet.length) {
+    alert('No questions loaded.');
+    quizBox.classList.add('hidden');
+    homeScreen.classList.remove('hidden');
     return;
   }
 
-  if (currentIndex >= questions.length) {
-    endQuiz();
+  if (qIndex >= questionSet.length) {
+    showResults();
     return;
   }
 
-  timeLeft = 15;
-  updateTimer();
-  questionTimer = setInterval(() => {
-    timeLeft--;
-    updateTimer();
-    if (timeLeft <= 0) {
-      clearInterval(questionTimer);
-      feedbackBox.innerText = "Time's up!";
-      nextBtn.classList.remove('hidden');
+  secondsLeft = 15;
+  refreshTimer();
+  timerRef = setInterval(() => {
+    secondsLeft--;
+    refreshTimer();
+    if (secondsLeft <= 0) {
+      clearInterval(timerRef);
+      responseBox.textContent = "Time's up!";
+      nextQuestionBtn.classList.remove('hidden');
     }
   }, 1000);
 
-  let qData = questions[currentIndex];
-  let question = decodeHTML(qData.question);
-  let correct = decodeHTML(qData.correct_answer);
-  let incorrect = qData.incorrect_answers.map(ans => decodeHTML(ans));
-  let choices = fisherYatesShuffle([correct, ...incorrect]);
+  const current = questionSet[qIndex];
+  const question = unescapeHTML(current.question);
+  const rightAnswer = unescapeHTML(current.correct_answer);
+  const wrongAnswers = current.incorrect_answers.map(unescapeHTML);
+  const options = shuffle([...wrongAnswers, rightAnswer]);
 
-  questionBox.innerText = question;
-  answersUl.innerHTML = '';
+  questionLabel.textContent = question;
+  answerList.innerHTML = '';
 
-  choices.forEach(choice => {
-    let li = document.createElement('li');
-    li.innerText = choice;
-    li.addEventListener('click', () => handleAnswerSelection(li, correct, question));
-    answersUl.appendChild(li);
+  options.forEach(opt => {
+    const item = document.createElement('li');
+    item.textContent = opt;
+    item.onclick = () => handleGuess(item, rightAnswer, question);
+    answerList.appendChild(item);
   });
 }
 
-function updateTimer() {
-  timerDisplay.innerText = `Time Left: ${timeLeft}s`;
+function refreshTimer() {
+  clock.textContent = `Time Left: ${secondsLeft}s`;
 }
 
-function endQuiz() {
-  quizDiv.classList.add('hidden');
-  resultDiv.classList.remove('hidden');
+function showResults() {
+  quizBox.classList.add('hidden');
+  resultsPanel.classList.remove('hidden');
 
-  let totalTime = Math.round((Date.now() - totalTimeStart) / 1000);
-  scoreText.innerText = `${totalScore} / ${questions.length} (Time: ${totalTime}s)`;
-  missedList.innerHTML = missedQs.map(miss => `<p><strong>Q:</strong> ${miss.q}<br><strong>A:</strong> ${miss.a}</p>`).join('');
+  const elapsed = Math.floor((Date.now() - quizStartTime) / 1000);
+  scoreDisplay.textContent = `${score} / ${questionSet.length} (Time: ${elapsed}s)`;
+  reviewList.innerHTML = mistakes.map(entry => `
+    <p><strong>Q:</strong> ${entry.q}<br><strong>A:</strong> ${entry.a}</p>
+  `).join('');
 }
 
-function handleAnswerSelection(selectedLi, correctAnswer, questionText) {
-  clearInterval(questionTimer);
-  if (selectedLi.innerText.trim() === correctAnswer.trim()) {
-    feedbackBox.innerText = "Correct answer 🎉";
-    totalScore++;
+function handleGuess(selected, correctAns, qText) {
+  clearInterval(timerRef);
+  if (selected.textContent.trim() === correctAns.trim()) {
+    responseBox.textContent = "Nice! 🎯";
+    score++;
   } else {
-    feedbackBox.innerText = "Incorrect 😔. The correct answer is: " + correctAnswer;
-    missedQs.push({ q: questionText, a: correctAnswer });
+    responseBox.textContent = `Nope 😓 Correct: ${correctAns}`;
+    mistakes.push({ q: qText, a: correctAns });
   }
-  nextBtn.classList.remove('hidden');
+  nextQuestionBtn.classList.remove('hidden');
 }
 
-function decodeHTML(str) {
-  const txt = document.createElement("textarea");
-  txt.innerHTML = str;
-  return txt.value;
+function unescapeHTML(html) {
+  const area = document.createElement('textarea');
+  area.innerHTML = html;
+  return area.value;
 }
 
-function fisherYatesShuffle(array) {
-  const arrayCopy = [...array];
-  for (let i = arrayCopy.length - 1; i > 0; i--) {
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
-    [arrayCopy[i], arrayCopy[j]] = [arrayCopy[j], arrayCopy[i]];
+    [arr[i], arr[j]] = [arr[j], arr[i]];
   }
-  return arrayCopy;
+  return arr;
 }
